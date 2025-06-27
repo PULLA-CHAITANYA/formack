@@ -1,70 +1,50 @@
-from flask import Flask, render_template, request, session
-from telethon import TelegramClient
+from telethon.sync import TelegramClient, events
 import asyncio
 import os
+import random
 
-app = Flask(__name__)
-app.secret_key = 'your_super_secret_key'  # Required for session storage
-SESSION_DIR = "./sessions"
-os.makedirs(SESSION_DIR, exist_ok=True)
+# Load credentials from Railway Environment Variables
+API_ID = int(os.environ['API_ID'])        # e.g., 25749247
+API_HASH = os.environ['API_HASH']         # e.g., '5c8f9cdbed12339f4d1d9414a0151bc7'
+SESSION_NAME = "918220747701"             # This should match your saved session file
 
-@app.route('/', methods=['GET', 'POST'])
-def index():
-    message = ''
-    if request.method == 'POST':
-        api_id = request.form['api_id']
-        api_hash = request.form['api_hash']
-        phone = request.form['phone']
-        session_name = phone.replace('+', '')
+# Track links to prevent duplicate smashes
+seen_links = set()
 
-        session['api_id'] = api_id
-        session['api_hash'] = api_hash
-        session['phone'] = phone
-        session['session_name'] = session_name
+client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
 
+@client.on(events.NewMessage(chats='mainet_community'))  # Replace with actual group username
+async def smash_handler(event):
+    message = event.message
+    text = message.message or ""
+    buttons = message.buttons
+
+    if buttons:
+        tweet_url = None
+        if "https://" in text:
+            start = text.find("https://")
+            end = text.find(" ", start)
+            tweet_url = text[start:] if end == -1 else text[start:end]
+
+        if tweet_url and tweet_url in seen_links:
+            print(f"[i] Already smashed: {tweet_url}")
+            return
+        elif tweet_url:
+            seen_links.add(tweet_url)
+
+        await asyncio.sleep(random.randint(6, 12))  # Random delay for anti-detection
         try:
-            asyncio.run(handle_send_code(session_name, api_id, api_hash, phone))
-            return render_template('code.html', api_id=api_id, api_hash=api_hash, phone=phone)
+            if len(buttons) >= 5:
+                await message.click(4)  # Click 5th button
+                print(f"[✓] Smashed 5th button: {tweet_url or 'No link'}")
+            else:
+                await message.click()  # Default to first button
+                print(f"[✓] Smashed first button: {tweet_url or 'No link'}")
         except Exception as e:
-            message = f"Error: {e}"
-    return render_template('index.html', message=message)
+            print(f"[x] Smash failed: {e}")
+    else:
+        print("[i] Message received – no buttons.")
 
-@app.route('/verify', methods=['POST'])
-def verify():
-    code = request.form['code']
-    api_id = session.get('api_id')
-    api_hash = session.get('api_hash')
-    phone = session.get('phone')
-    session_name = session.get('session_name')
-    phone_code_hash = session.get('phone_code_hash')
-
-    if not phone_code_hash:
-        return "❌ Missing phone_code_hash. Please restart login."
-
-    try:
-        asyncio.run(handle_sign_in(session_name, api_id, api_hash, phone, code, phone_code_hash))
-        return render_template('success.html', session_name=session_name)
-    except Exception as e:
-        return f"❌ Verification failed: {e}"
-
-async def handle_send_code(session_name, api_id, api_hash, phone):
-    client = TelegramClient(os.path.join(SESSION_DIR, session_name), int(api_id), api_hash)
-    await client.connect()
-
-    if not await client.is_user_authorized():
-        result = await client.send_code_request(phone)
-        session['phone_code_hash'] = result.phone_code_hash
-
-    await client.disconnect()
-
-async def handle_sign_in(session_name, api_id, api_hash, phone, code, phone_code_hash):
-    client = TelegramClient(os.path.join(SESSION_DIR, session_name), int(api_id), api_hash)
-    await client.connect()
-
-    if not await client.is_user_authorized():
-        await client.sign_in(phone=phone, code=code, phone_code_hash=phone_code_hash)
-
-    await client.disconnect()
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080)
+client.start()
+print("🤖 SmashBot is running and waiting for raid messages...")
+client.run_until_disconnected()
