@@ -2,61 +2,75 @@ from telethon.sync import TelegramClient, events
 import asyncio
 import os
 import random
+import logging
+from telethon.errors import SessionPasswordNeededError, TypeNotFoundError
 
-# ENV variables from Railway
+# Setup basic logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Load API credentials from Railway or .env
 API_ID = int(os.environ['API_ID'])
 API_HASH = os.environ['API_HASH']
+SESSION_NAME = "918220747701"
 
-# Your existing session file (must be in root directory of repo)
-SESSION_NAME = "918220747701"  # Make sure you have 918220747701.session in your project root
-
-# Debug: Check if the session file exists in the deployed environment
-print("📁 Files in directory:", os.listdir())
+# Confirm session file exists
 if f"{SESSION_NAME}.session" not in os.listdir():
-    print("❌ Session file not found. Please upload it to the project root.")
+    logger.error("❌ Session file not found. Please upload it to the project root.")
     exit()
 
 seen_links = set()
 client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
 
-@client.on(events.NewMessage(chats='mainet_community'))  # Change to your group if needed
+@client.on(events.NewMessage(chats='mainet_community'))  # Replace with actual group/channel
 async def smash_handler(event):
-    message = event.message
-    text = message.message or ""
-    buttons = message.buttons
+    try:
+        message = event.message
+        text = message.message or ""
+        buttons = message.buttons
 
-    if buttons:
-        tweet_url = None
-        if "https://" in text:
-            start = text.find("https://")
-            end = text.find(" ", start)
-            tweet_url = text[start:] if end == -1 else text[start:end]
+        if buttons:
+            tweet_url = None
+            if "https://" in text:
+                start = text.find("https://")
+                end = text.find(" ", start)
+                tweet_url = text[start:] if end == -1 else text[start:end]
 
-        if tweet_url and tweet_url in seen_links:
-            print(f"[i] Already smashed: {tweet_url}")
-            return
-        elif tweet_url:
-            seen_links.add(tweet_url)
+            if tweet_url and tweet_url in seen_links:
+                logger.info(f"[i] Already smashed: {tweet_url}")
+                return
+            elif tweet_url:
+                seen_links.add(tweet_url)
 
-        await asyncio.sleep(random.randint(6, 12))  # Anti-detection delay
-        try:
-            if len(buttons) >= 5:
-                await message.click(4)  # 5th button
-                print(f"[✓] Smashed 5th button: {tweet_url or 'No link'}")
-            else:
-                await message.click()  # Default to first button
-                print(f"[✓] Smashed default button: {tweet_url or 'No link'}")
-        except Exception as e:
-            print(f"[x] Error smashing: {e}")
-    else:
-        print("[i] Message received — no buttons found.")
+            await asyncio.sleep(random.randint(6, 12))  # Anti-bot detection
+
+            try:
+                if len(buttons) >= 5:
+                    await message.click(4)
+                    logger.info(f"[✓] Smashed 5th button: {tweet_url or 'No link'}")
+                else:
+                    await message.click()
+                    logger.info(f"[✓] Smashed default button: {tweet_url or 'No link'}")
+            except Exception as click_err:
+                logger.warning(f"[x] Error while clicking button: {click_err}")
+        else:
+            logger.info("[i] Message received — no buttons found.")
+
+    except TypeNotFoundError:
+        logger.warning("⚠️ Skipped unknown TLObject (API version mismatch or malformed message)")
+    except Exception as e:
+        logger.error(f"⚠️ Unexpected error in handler: {e}")
 
 async def main():
     await client.connect()
     if not await client.is_user_authorized():
-        print("❌ Session not authorized. Please login manually again.")
+        logger.error("❌ Session not authorized. Please login again locally and re-upload the session.")
         return
-    print("🤖 SmashBot is running and waiting for raid messages...")
+    logger.info("🤖 SmashBot is running and waiting for raid messages...")
     await client.run_until_disconnected()
 
-asyncio.run(main())
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        logger.critical(f"🔥 Bot crashed: {e}")
