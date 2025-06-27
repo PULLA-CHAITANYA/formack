@@ -1,16 +1,13 @@
-
 <!DOCTYPE html>
 <html>
-<head>
-  <title>Enter Code</title>
-</head>
+<head><title>Enter Code</title></head>
 <body>
   <h2>Enter the code sent to your Telegram</h2>
   <form method="POST" action="/verify">
     <input type="hidden" name="api_id" value="{{ api_id }}">
     <input type="hidden" name="api_hash" value="{{ api_hash }}">
     <input type="hidden" name="phone" value="{{ phone }}">
-
+    
     <label>Code:</label><br>
     <input type="text" name="code" required><br><br>
 
