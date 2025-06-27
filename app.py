@@ -37,8 +37,14 @@ def verify():
         return f"❌ Verification failed: {e}"
 
 async def handle_send_code(session_name, api_id, api_hash, phone):
-    async with TelegramClient(session_name, int(api_id), api_hash) as client:
+    client = TelegramClient(session_name, int(api_id), api_hash)
+    await client.connect()
+
+    if not await client.is_user_authorized():
         await client.send_code_request(phone)
+
+    await client.disconnect()
+
 
 async def handle_sign_in(session_name, api_id, api_hash, phone, code):
     client = TelegramClient(session_name, int(api_id), api_hash)
