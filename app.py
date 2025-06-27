@@ -41,8 +41,16 @@ async def handle_send_code(session_name, api_id, api_hash, phone):
         await client.send_code_request(phone)
 
 async def handle_sign_in(session_name, api_id, api_hash, phone, code):
-    async with TelegramClient(session_name, int(api_id), api_hash) as client:
-        await client.sign_in(phone=phone, code=code)
+    client = TelegramClient(session_name, int(api_id), api_hash)
+    await client.connect()
+
+    if not await client.is_user_authorized():
+        try:
+            await client.sign_in(phone=phone, code=code)
+        except Exception as e:
+            raise e
+    await client.disconnect()
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
