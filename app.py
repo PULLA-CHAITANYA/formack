@@ -1,8 +1,10 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect, url_for
 from telethon import TelegramClient
 import asyncio
+import os
 
 app = Flask(__name__)
+SESSION_DIR = "./"  # You can change this to a subfolder if needed
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -14,7 +16,6 @@ def index():
         session_name = phone.replace('+', '')
 
         try:
-            # Launch async logic in sync Flask context
             asyncio.run(handle_send_code(session_name, api_id, api_hash, phone))
             return render_template('code.html', api_id=api_id, api_hash=api_hash, phone=phone)
         except Exception as e:
@@ -31,10 +32,9 @@ def verify():
 
     try:
         asyncio.run(handle_sign_in(session_name, api_id, api_hash, phone, code))
-        return "✅ Logged in successfully! Session saved."
+        return render_template('success.html', session_name=session_name)
     except Exception as e:
         return f"❌ Verification failed: {e}"
-
 
 async def handle_send_code(session_name, api_id, api_hash, phone):
     async with TelegramClient(session_name, int(api_id), api_hash) as client:
