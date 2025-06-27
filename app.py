@@ -1,7 +1,6 @@
-
 from flask import Flask, render_template, request
-from telethon.sync import TelegramClient
-import os
+from telethon import TelegramClient
+import asyncio
 
 app = Flask(__name__)
 
@@ -15,18 +14,12 @@ def index():
         session_name = phone.replace('+', '')
 
         try:
-            client = TelegramClient(session_name, int(api_id), api_hash)
-            client.connect()
-
-            if not client.is_user_authorized():
-                client.send_code_request(phone)
-                return render_template('code.html', api_id=api_id, api_hash=api_hash, phone=phone)
-
-            message = "Already logged in!"
+            # Launch async logic in sync Flask context
+            asyncio.run(handle_send_code(session_name, api_id, api_hash, phone))
+            return render_template('code.html', api_id=api_id, api_hash=api_hash, phone=phone)
         except Exception as e:
             message = f"Error: {e}"
     return render_template('index.html', message=message)
-
 
 @app.route('/verify', methods=['POST'])
 def verify():
@@ -37,15 +30,19 @@ def verify():
     session_name = phone.replace('+', '')
 
     try:
-        client = TelegramClient(session_name, int(api_id), api_hash)
-        client.connect()
-
-        if not client.is_user_authorized():
-            client.sign_in(phone, code)
-
+        asyncio.run(handle_sign_in(session_name, api_id, api_hash, phone, code))
         return "✅ Logged in successfully! Session saved."
     except Exception as e:
         return f"❌ Verification failed: {e}"
+
+
+async def handle_send_code(session_name, api_id, api_hash, phone):
+    async with TelegramClient(session_name, int(api_id), api_hash) as client:
+        await client.send_code_request(phone)
+
+async def handle_sign_in(session_name, api_id, api_hash, phone, code):
+    async with TelegramClient(session_name, int(api_id), api_hash) as client:
+        await client.sign_in(phone=phone, code=code)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
