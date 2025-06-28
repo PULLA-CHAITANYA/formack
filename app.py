@@ -22,7 +22,7 @@ if f"{SESSION_NAME}.session" not in os.listdir():
 seen_links = set()
 client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
 
-@client.on(events.NewMessage(chats='mainet_community'))  # Replace with your group/channel
+@client.on(events.NewMessage(chats='testingbothu'))  # Replace with your group/channel
 async def smash_handler(event):
     message = event.message
     text = message.message or ""
