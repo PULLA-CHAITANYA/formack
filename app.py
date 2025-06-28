@@ -3,6 +3,7 @@ import asyncio
 import os
 import random
 import logging
+from telethon.errors import SessionPasswordNeededError
 
 # ─────────────────────────────────────────────
 # ✅ Logging Setup
@@ -18,7 +19,9 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────
 API_ID = int(os.environ['API_ID'])
 API_HASH = os.environ['API_HASH']
-SESSION_NAME = "918220747701"  # Replace with your phone number or custom session name
+SESSION_NAME = "918220747701"
+TARGET_THREAD_ID = 67724  # Thread ID for RAIDSSS topic
+TARGET_CHAT = 'mainet_community'
 
 # ─────────────────────────────────────────────
 # ✅ Session Validation
@@ -31,24 +34,28 @@ seen_links = set()
 client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
 
 # ─────────────────────────────────────────────
-# ✅ Smash Handler for Specific Channel Only
+# ✅ Main SmashBot Handler
 # ─────────────────────────────────────────────
-@client.on(events.NewMessage(chats='testingbothu'))  # Replace with actual channel username or ID
+@client.on(events.NewMessage(chats=TARGET_CHAT))
 async def smash_handler(event):
-    message = event.message
-    text = message.message or ""
+    msg = event.message
 
+    # Filter by thread_id
+    if getattr(msg, "thread_id", None) != TARGET_THREAD_ID:
+        return  # Ignore messages outside RAIDSSS topic
+
+    logger.info(f"[✓] New message in RAIDSSS topic: {msg.message}")
+
+    # Extract buttons
     try:
         buttons = await event.get_buttons()
     except Exception as e:
         buttons = None
         logger.warning(f"[x] Failed to get buttons: {e}")
 
-    logger.info(f"[✓] Message received in 'testingbothu'")
-    logger.info(f"    → Text: {text}")
-    logger.info(f"    → Buttons: {buttons}")
-
+    # Extract tweet URL
     tweet_url = None
+    text = msg.message or ""
     if "https://" in text:
         start = text.find("https://")
         end = text.find(" ", start)
@@ -60,33 +67,34 @@ async def smash_handler(event):
     elif tweet_url:
         seen_links.add(tweet_url)
 
+    # Click button
     if buttons:
         await asyncio.sleep(random.randint(6, 12))  # Anti-detection delay
         try:
             if len(buttons) >= 5:
-                await message.click(4)
-                logger.info(f"[✓] Smashed 5th button: {tweet_url or 'No link'}")
+                await msg.click(4)
+                logger.info(f"[✓] Clicked 5th button for: {tweet_url or 'No link'}")
             else:
-                await message.click()
-                logger.info(f"[✓] Smashed default button: {tweet_url or 'No link'}")
+                await msg.click()
+                logger.info(f"[✓] Clicked default button for: {tweet_url or 'No link'}")
         except Exception as e:
             logger.error(f"[x] Error clicking button: {e}")
     else:
-        logger.info("[i] Message received — no clickable buttons found.")
+        logger.info("[i] No buttons found in message.")
 
 # ─────────────────────────────────────────────
-# ✅ Async Entrypoint
+# ✅ Async Start
 # ─────────────────────────────────────────────
 async def main():
     await client.connect()
     if not await client.is_user_authorized():
         logger.error("❌ Session not authorized. Please login again locally and re-upload the session.")
         return
-    logger.info("🤖 SmashBot is running and waiting for raid messages...")
+    logger.info("🤖 SmashBot is now monitoring the RAIDSSS topic...")
     await client.run_until_disconnected()
 
 # ─────────────────────────────────────────────
-# ✅ Start the Bot
+# ✅ Entrypoint
 # ─────────────────────────────────────────────
 if __name__ == "__main__":
     try:
