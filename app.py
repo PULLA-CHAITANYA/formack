@@ -34,7 +34,7 @@ def home():
 # ─────────────────────────────
 # ✅ Telegram Handler
 # ─────────────────────────────
-@client.on(events.NewMessage(chats='mainet_community'))
+@client.on(events.NewMessage(chats='testingbothu'))
 async def handler(event):
     message = event.message
     text = message.message or ""
