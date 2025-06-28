@@ -5,16 +5,25 @@ import random
 import logging
 from telethon.errors import SessionPasswordNeededError, TypeNotFoundError
 
-# Setup basic logging
-logging.basicConfig(level=logging.INFO)
+# ─────────────────────────────────────────────
+# ✅ Logging Setup
+# ─────────────────────────────────────────────
+logging.basicConfig(
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    level=logging.INFO,
+)
 logger = logging.getLogger(__name__)
 
-# Load API credentials from Railway or .env
+# ─────────────────────────────────────────────
+# ✅ Environment Configs
+# ─────────────────────────────────────────────
 API_ID = int(os.environ['API_ID'])
 API_HASH = os.environ['API_HASH']
 SESSION_NAME = "918220747701"
 
-# Confirm session file exists
+# ─────────────────────────────────────────────
+# ✅ Session Validation
+# ─────────────────────────────────────────────
 if f"{SESSION_NAME}.session" not in os.listdir():
     logger.error("❌ Session file not found. Please upload it to the project root.")
     exit()
@@ -22,18 +31,35 @@ if f"{SESSION_NAME}.session" not in os.listdir():
 seen_links = set()
 client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
 
-@client.on(events.NewMessage(chats='testingbothu'))  # Replace with your group/channel
+# ─────────────────────────────────────────────
+# ✅ Universal Debug Handler (temporary)
+# ─────────────────────────────────────────────
+@client.on(events.NewMessage)
+async def debug_handler(event):
+    try:
+        chat = await event.get_chat()
+        logger.warning(f"[DEBUG] New message from: {chat.title} ({event.chat_id})")
+        logger.warning(f"[DEBUG] Text: {event.message.message}")
+    except Exception as e:
+        logger.warning(f"[DEBUG] Failed to fetch chat/message info: {e}")
+
+# ─────────────────────────────────────────────
+# ✅ Main SmashBot Handler
+# ─────────────────────────────────────────────
+@client.on(events.NewMessage(chats='testingbothu'))  # Replace with actual group/channel
 async def smash_handler(event):
     message = event.message
     text = message.message or ""
+
     try:
-        buttons = await event.get_buttons()  # More reliable
+        buttons = await event.get_buttons()
     except Exception as e:
         buttons = None
         logger.warning(f"[x] Failed to get buttons: {e}")
 
-    logger.debug(f"[DEBUG] Message: {text}")
-    logger.debug(f"[DEBUG] Buttons: {buttons}")
+    logger.info(f"[✓] Message received in 'testingbothu'")
+    logger.info(f"    → Text: {text}")
+    logger.info(f"    → Buttons: {buttons}")
 
     tweet_url = None
     if "https://" in text:
@@ -48,7 +74,7 @@ async def smash_handler(event):
         seen_links.add(tweet_url)
 
     if buttons:
-        await asyncio.sleep(random.randint(6, 12))  # Anti-detection
+        await asyncio.sleep(random.randint(6, 12))  # Anti-detection delay
         try:
             if len(buttons) >= 5:
                 await message.click(4)
@@ -57,10 +83,13 @@ async def smash_handler(event):
                 await message.click()
                 logger.info(f"[✓] Smashed default button: {tweet_url or 'No link'}")
         except Exception as e:
-            logger.error(f"[x] Error clicking: {e}")
+            logger.error(f"[x] Error clicking button: {e}")
     else:
         logger.info("[i] Message received — no clickable buttons found.")
 
+# ─────────────────────────────────────────────
+# ✅ Main Async Start
+# ─────────────────────────────────────────────
 async def main():
     await client.connect()
     if not await client.is_user_authorized():
@@ -69,6 +98,9 @@ async def main():
     logger.info("🤖 SmashBot is running and waiting for raid messages...")
     await client.run_until_disconnected()
 
+# ─────────────────────────────────────────────
+# ✅ Entrypoint
+# ─────────────────────────────────────────────
 if __name__ == "__main__":
     try:
         asyncio.run(main())
