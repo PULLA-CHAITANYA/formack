@@ -29,35 +29,26 @@ client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
 seen_links = set()
 
 # ─────────────────────────────
-# ✅ Debug Logger (Global)
+# ✅ Raid Handler (Only Button Messages)
 # ─────────────────────────────
-@client.on(events.NewMessage)
-async def debug_handler(event):
-    try:
-        chat = await event.get_chat()
-        logger.warning(f"[DEBUG] New message from: {chat.title} ({event.chat_id})")
-        logger.warning(f"[DEBUG] Text: {event.message.message}")
-    except Exception as e:
-        logger.warning(f"[DEBUG] Failed to fetch chat/message info: {e}")
-
-# ─────────────────────────────
-# ✅ Smash Handler (Raidar Bot)
-# ─────────────────────────────
-@client.on(events.NewMessage(chats='testingbothu'))  # replace with your real group
-async def smash_handler(event):
+@client.on(events.NewMessage(chats='mainet_community'))
+async def raid_filter(event):
     message = event.message
     text = message.message or ""
 
     try:
         buttons = await event.get_buttons()
-    except Exception as e:
+    except Exception:
         buttons = None
-        logger.warning(f"[x] Failed to get buttons: {e}")
 
-    logger.info(f"[✓] Message received in 'testingbothu'")
-    logger.info(f"    → Text: {text}")
-    logger.info(f"    → Buttons: {buttons}")
+    if not buttons:
+        return  # ⛔ Ignore messages with no buttons
 
+    logger.info(f"[🚀] Button message detected in 'mainet_community'")
+    logger.info(f"     → Text: {text}")
+    logger.info(f"     → Buttons: {buttons}")
+
+    # Find tweet URL if present
     tweet_url = None
     if "https://" in text:
         start = text.find("https://")
@@ -65,38 +56,34 @@ async def smash_handler(event):
         tweet_url = text[start:] if end == -1 else text[start:end]
 
     if tweet_url and tweet_url in seen_links:
-        logger.info(f"[i] Already smashed: {tweet_url}")
+        logger.info(f"[SKIP] Already handled: {tweet_url}")
         return
     elif tweet_url:
         seen_links.add(tweet_url)
 
-    if buttons:
-        await asyncio.sleep(random.randint(6, 12))
-        try:
-            if len(buttons) >= 5:
-                await message.click(4)
-                logger.info(f"[✓] Clicked 5th button: {tweet_url or 'No link'}")
-            else:
-                await message.click()
-                logger.info(f"[✓] Clicked default button: {tweet_url or 'No link'}")
-        except Exception as e:
-            logger.error(f"[x] Error clicking button: {e}")
-    else:
-        logger.info("[i] No clickable buttons found.")
+    await asyncio.sleep(random.randint(6, 12))  # Anti-bot delay
+
+    try:
+        if len(buttons) >= 5:
+            await message.click(4)
+            logger.info(f"[✓] Clicked 5th button: {tweet_url or 'No link'}")
+        else:
+            await message.click()
+            logger.info(f"[✓] Clicked first button: {tweet_url or 'No link'}")
+    except Exception as e:
+        logger.error(f"[x] Error clicking button: {e}")
 
 # ─────────────────────────────
-# ✅ Topic Scanner
+# ✅ Topic Scanner (Optional Logging)
 # ─────────────────────────────
 async def get_last_message_topic_id():
     try:
         chat = 'mainet_community'
-        async for message in client.iter_messages(chat, limit=50):  # scan more
+        async for message in client.iter_messages(chat, limit=50):
             topic_id = getattr(message, 'topic_id', None)
             logger.info(f"🧾 Message ID: {message.id} | Topic ID: {topic_id}")
             if topic_id:
-                logger.info(f"🧵 Found topic message in '{chat}':")
-                logger.info(f"    → Text: {message.text}")
-                logger.info(f"    → Thread ID (topic_id): {topic_id}")
+                logger.info(f"🧵 Found topic in '{chat}': {message.text}")
                 return
         logger.warning("⚠️ No thread messages found in last 50 messages.")
     except Exception as e:
@@ -111,7 +98,7 @@ async def main():
         logger.error("❌ Not authorized. Please re-login.")
         return
 
-    logger.info("🤖 SmashBot is running...")
+    logger.info("🤖 SmashBot is live and monitoring 'mainet_community' for raid buttons...")
     await get_last_message_topic_id()
     await client.run_until_disconnected()
 
