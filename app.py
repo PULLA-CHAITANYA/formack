@@ -89,15 +89,19 @@ async def smash_handler(event):
 # ─────────────────────────────────────────────
 async def get_last_message_topic_id():
     try:
-        chat = 'mainet_community'  # Change this to any group/channel name or ID
-        async for message in client.iter_messages(chat, limit=1):
+        chat = 'mainet_community'  # Your group
+        async for message in client.iter_messages(chat, limit=20):  # Increase limit to scan more messages
             topic_id = getattr(message, 'topic_id', None)
-            logger.info(f"🧵 Latest message in '{chat}': {message.text}")
-            logger.info(f"🧵 Thread ID (topic_id): {topic_id}")
-            logger.info(f"📨 Message ID: {message.id}")
-            return
+            if topic_id:
+                logger.info(f"🧵 Thread message found in '{chat}'")
+                logger.info(f"    → Text: {message.text}")
+                logger.info(f"    → Thread ID (topic_id): {topic_id}")
+                logger.info(f"    → Message ID: {message.id}")
+                return
+        logger.warning("⚠️ No thread messages found in recent 20 messages.")
     except Exception as e:
         logger.error(f"Error fetching thread ID: {e}")
+
 
 # ─────────────────────────────────────────────
 # ✅ Main Async Start
