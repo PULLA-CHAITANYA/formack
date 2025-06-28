@@ -3,7 +3,6 @@ import asyncio
 import os
 import random
 import logging
-from telethon.errors import SessionPasswordNeededError, TypeNotFoundError
 
 # ─────────────────────────────────────────────
 # ✅ Logging Setup
@@ -19,7 +18,7 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────
 API_ID = int(os.environ['API_ID'])
 API_HASH = os.environ['API_HASH']
-SESSION_NAME = "918220747701"
+SESSION_NAME = "918220747701"  # Replace with your phone number or custom session name
 
 # ─────────────────────────────────────────────
 # ✅ Session Validation
@@ -32,21 +31,9 @@ seen_links = set()
 client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
 
 # ─────────────────────────────────────────────
-# ✅ Universal Debug Handler (temporary)
+# ✅ Smash Handler for Specific Channel Only
 # ─────────────────────────────────────────────
-@client.on(events.NewMessage)
-async def debug_handler(event):
-    try:
-        chat = await event.get_chat()
-        logger.warning(f"[DEBUG] New message from: {chat.title} ({event.chat_id})")
-        logger.warning(f"[DEBUG] Text: {event.message.message}")
-    except Exception as e:
-        logger.warning(f"[DEBUG] Failed to fetch chat/message info: {e}")
-
-# ─────────────────────────────────────────────
-# ✅ Main SmashBot Handler
-# ─────────────────────────────────────────────
-@client.on(events.NewMessage(chats='testingbothu'))  # Replace with actual group/channel
+@client.on(events.NewMessage(chats='testingbothu'))  # Replace with actual channel username or ID
 async def smash_handler(event):
     message = event.message
     text = message.message or ""
@@ -88,7 +75,7 @@ async def smash_handler(event):
         logger.info("[i] Message received — no clickable buttons found.")
 
 # ─────────────────────────────────────────────
-# ✅ Main Async Start
+# ✅ Async Entrypoint
 # ─────────────────────────────────────────────
 async def main():
     await client.connect()
@@ -99,7 +86,7 @@ async def main():
     await client.run_until_disconnected()
 
 # ─────────────────────────────────────────────
-# ✅ Entrypoint
+# ✅ Start the Bot
 # ─────────────────────────────────────────────
 if __name__ == "__main__":
     try:
