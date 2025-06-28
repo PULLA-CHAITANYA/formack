@@ -3,7 +3,7 @@ import asyncio
 import os
 import random
 import logging
-from telethon.errors import SessionPasswordNeededError, TypeNotFoundError
+from telethon.errors import SessionPasswordNeededError
 
 # ─────────────────────────────
 # ✅ Logging Setup
@@ -29,26 +29,23 @@ client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
 seen_links = set()
 
 # ─────────────────────────────
-# ✅ Raid Handler (Only Button Messages)
+# ✅ Message Handler
 # ─────────────────────────────
 @client.on(events.NewMessage(chats='mainet_community'))
-async def raid_filter(event):
+async def handler(event):
     message = event.message
     text = message.message or ""
 
+    # Skip messages without buttons
     try:
         buttons = await event.get_buttons()
-    except Exception:
-        buttons = None
+        if not buttons:
+            return
+    except Exception as e:
+        logger.warning(f"[x] Could not fetch buttons: {e}")
+        return
 
-    if not buttons:
-        return  # ⛔ Ignore messages with no buttons
-
-    logger.info(f"[🚀] Button message detected in 'mainet_community'")
-    logger.info(f"     → Text: {text}")
-    logger.info(f"     → Buttons: {buttons}")
-
-    # Find tweet URL if present
+    # Extract tweet URL if available
     tweet_url = None
     if "https://" in text:
         start = text.find("https://")
@@ -56,41 +53,24 @@ async def raid_filter(event):
         tweet_url = text[start:] if end == -1 else text[start:end]
 
     if tweet_url and tweet_url in seen_links:
-        logger.info(f"[SKIP] Already handled: {tweet_url}")
+        logger.info(f"[i] Already processed: {tweet_url}")
         return
     elif tweet_url:
         seen_links.add(tweet_url)
 
-    await asyncio.sleep(random.randint(6, 12))  # Anti-bot delay
-
+    await asyncio.sleep(random.randint(6, 12))
     try:
         if len(buttons) >= 5:
             await message.click(4)
             logger.info(f"[✓] Clicked 5th button: {tweet_url or 'No link'}")
         else:
             await message.click()
-            logger.info(f"[✓] Clicked first button: {tweet_url or 'No link'}")
+            logger.info(f"[✓] Clicked default button: {tweet_url or 'No link'}")
     except Exception as e:
-        logger.error(f"[x] Error clicking button: {e}")
+        logger.error(f"[x] Failed to click button: {e}")
 
 # ─────────────────────────────
-# ✅ Topic Scanner (Optional Logging)
-# ─────────────────────────────
-async def get_last_message_topic_id():
-    try:
-        chat = 'mainet_community'
-        async for message in client.iter_messages(chat, limit=50):
-            topic_id = getattr(message, 'topic_id', None)
-            logger.info(f"🧾 Message ID: {message.id} | Topic ID: {topic_id}")
-            if topic_id:
-                logger.info(f"🧵 Found topic in '{chat}': {message.text}")
-                return
-        logger.warning("⚠️ No thread messages found in last 50 messages.")
-    except Exception as e:
-        logger.error(f"❌ Error fetching topic: {e}")
-
-# ─────────────────────────────
-# ✅ Main Async Entrypoint
+# ✅ Main Entrypoint
 # ─────────────────────────────
 async def main():
     await client.connect()
@@ -99,11 +79,10 @@ async def main():
         return
 
     logger.info("🤖 SmashBot is live and monitoring 'mainet_community' for raid buttons...")
-    await get_last_message_topic_id()
     await client.run_until_disconnected()
 
 # ─────────────────────────────
-# ✅ Entrypoint
+# ✅ Run the Bot
 # ─────────────────────────────
 if __name__ == "__main__":
     try:
