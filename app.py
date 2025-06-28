@@ -3,7 +3,7 @@ import asyncio
 import os
 import random
 import logging
-from telethon.errors import SessionPasswordNeededError
+from telethon.errors import SessionPasswordNeededError, TypeNotFoundError
 
 # ─────────────────────────────────────────────
 # ✅ Logging Setup
@@ -19,13 +19,8 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────
 API_ID = int(os.environ['API_ID'])
 API_HASH = os.environ['API_HASH']
-SESSION_NAME = "918220747701"
-TARGET_THREAD_ID = 67724  # Thread ID for RAIDSSS topic
-TARGET_CHAT = 'mainet_community'
+SESSION_NAME = "918220747701"  # Replace with your number/session name
 
-# ─────────────────────────────────────────────
-# ✅ Session Validation
-# ─────────────────────────────────────────────
 if f"{SESSION_NAME}.session" not in os.listdir():
     logger.error("❌ Session file not found. Please upload it to the project root.")
     exit()
@@ -34,28 +29,36 @@ seen_links = set()
 client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
 
 # ─────────────────────────────────────────────
-# ✅ Main SmashBot Handler
+# ✅ Debug Handler for All Messages
 # ─────────────────────────────────────────────
-@client.on(events.NewMessage(chats=TARGET_CHAT))
+@client.on(events.NewMessage)
+async def debug_handler(event):
+    try:
+        chat = await event.get_chat()
+        logger.warning(f"[DEBUG] New message from: {chat.title} ({event.chat_id})")
+        logger.warning(f"[DEBUG] Text: {event.message.message}")
+    except Exception as e:
+        logger.warning(f"[DEBUG] Failed to fetch chat/message info: {e}")
+
+# ─────────────────────────────────────────────
+# ✅ Raidar SmashBot Handler
+# ─────────────────────────────────────────────
+@client.on(events.NewMessage(chats='testingbothu'))  # Replace with actual group name
 async def smash_handler(event):
-    msg = event.message
+    message = event.message
+    text = message.message or ""
 
-    # Filter by thread_id
-    if getattr(msg, "thread_id", None) != TARGET_THREAD_ID:
-        return  # Ignore messages outside RAIDSSS topic
-
-    logger.info(f"[✓] New message in RAIDSSS topic: {msg.message}")
-
-    # Extract buttons
     try:
         buttons = await event.get_buttons()
     except Exception as e:
         buttons = None
         logger.warning(f"[x] Failed to get buttons: {e}")
 
-    # Extract tweet URL
+    logger.info(f"[✓] Message received in 'testingbothu'")
+    logger.info(f"    → Text: {text}")
+    logger.info(f"    → Buttons: {buttons}")
+
     tweet_url = None
-    text = msg.message or ""
     if "https://" in text:
         start = text.find("https://")
         end = text.find(" ", start)
@@ -67,30 +70,46 @@ async def smash_handler(event):
     elif tweet_url:
         seen_links.add(tweet_url)
 
-    # Click button
     if buttons:
         await asyncio.sleep(random.randint(6, 12))  # Anti-detection delay
         try:
             if len(buttons) >= 5:
-                await msg.click(4)
-                logger.info(f"[✓] Clicked 5th button for: {tweet_url or 'No link'}")
+                await message.click(4)
+                logger.info(f"[✓] Smashed 5th button: {tweet_url or 'No link'}")
             else:
-                await msg.click()
-                logger.info(f"[✓] Clicked default button for: {tweet_url or 'No link'}")
+                await message.click()
+                logger.info(f"[✓] Smashed default button: {tweet_url or 'No link'}")
         except Exception as e:
             logger.error(f"[x] Error clicking button: {e}")
     else:
-        logger.info("[i] No buttons found in message.")
+        logger.info("[i] Message received — no clickable buttons found.")
 
 # ─────────────────────────────────────────────
-# ✅ Async Start
+# ✅ Thread Checker Function
+# ─────────────────────────────────────────────
+async def get_last_message_topic_id():
+    try:
+        chat = 'mainet_community'  # Change this to any group/channel name or ID
+        async for message in client.iter_messages(chat, limit=1):
+            topic_id = getattr(message, 'topic_id', None)
+            logger.info(f"🧵 Latest message in '{chat}': {message.text}")
+            logger.info(f"🧵 Thread ID (topic_id): {topic_id}")
+            logger.info(f"📨 Message ID: {message.id}")
+            return
+    except Exception as e:
+        logger.error(f"Error fetching thread ID: {e}")
+
+# ─────────────────────────────────────────────
+# ✅ Main Async Start
 # ─────────────────────────────────────────────
 async def main():
     await client.connect()
     if not await client.is_user_authorized():
         logger.error("❌ Session not authorized. Please login again locally and re-upload the session.")
         return
-    logger.info("🤖 SmashBot is now monitoring the RAIDSSS topic...")
+
+    logger.info("🤖 SmashBot is running and waiting for raid messages...")
+    await get_last_message_topic_id()
     await client.run_until_disconnected()
 
 # ─────────────────────────────────────────────
