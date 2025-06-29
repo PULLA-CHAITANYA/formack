@@ -3,14 +3,9 @@ import asyncio
 import os
 import random
 import logging
-from flask import Flask
 import threading
-
-API_ID = int(os.environ['API_ID'])
-API_HASH = os.environ['API_HASH']
-SESSION_NAME = "918220747701"
-
-app = Flask(__name__)
+from flask import Flask
+from telethon.errors import SessionPasswordNeededError
 
 # ─────────────────────────────
 # ✅ Logging Setup
@@ -21,24 +16,42 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# ─────────────────────────────
+# ✅ Config
+# ─────────────────────────────
+API_ID = int(os.environ['API_ID'])
+API_HASH = os.environ['API_HASH']
+SESSION_NAME = "918220747701"
+
+if f"{SESSION_NAME}.session" not in os.listdir():
+    logger.error("❌ Session file not found. Please upload it.")
+    exit()
+
 client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
 seen_links = set()
 
 # ─────────────────────────────
-# ✅ Flask Endpoint
+# ✅ Flask Setup (for uptime pings)
 # ─────────────────────────────
-@app.route('/')
+app = Flask(__name__)
+
+@app.route("/ping", methods=["GET", "HEAD"])
 def home():
-    return "✅ SmashBot is alive!"
+    logger.info("✅ UptimeRobot ping received.")
+    return "SmashBot is alive!", 200
+
+def run_flask():
+    app.run(host="0.0.0.0", port=8080)
 
 # ─────────────────────────────
-# ✅ Telegram Handler
+# ✅ Message Handler
 # ─────────────────────────────
-@client.on(events.NewMessage(chats='testingbothu'))
+@client.on(events.NewMessage(chats='testingbothu'))  # change to your group/topic
 async def handler(event):
     message = event.message
     text = message.message or ""
 
+    # Skip messages without buttons
     try:
         buttons = await event.get_buttons()
         if not buttons:
@@ -47,6 +60,7 @@ async def handler(event):
         logger.warning(f"[x] Could not fetch buttons: {e}")
         return
 
+    # Extract tweet URL if available
     tweet_url = None
     if "https://" in text:
         start = text.find("https://")
@@ -60,34 +74,34 @@ async def handler(event):
         seen_links.add(tweet_url)
 
     await asyncio.sleep(random.randint(6, 12))
+
     try:
-        if len(buttons) >= 5:
-            await message.click(4)
-            logger.info(f"[✓] Clicked 5th button: {tweet_url or 'No link'}")
-        else:
-            await message.click()
-            logger.info(f"[✓] Clicked default button: {tweet_url or 'No link'}")
+        # Always try to click the last button in the last row
+        last_row = buttons[-1]
+        last_col = len(last_row) - 1
+        await message.click(len(buttons) - 1, last_col)
+        logger.info(f"[✓] Clicked last button: {tweet_url or 'No link'}")
     except Exception as e:
-        logger.error(f"[x] Failed to click button: {e}")
+        logger.error(f"[x] Failed to click last button: {e}")
 
 # ─────────────────────────────
-# ✅ Telegram Background Task
+# ✅ Main Entrypoint
 # ─────────────────────────────
-def start_telegram():
-    async def main():
-        await client.connect()
-        if not await client.is_user_authorized():
-            logger.error("❌ Not authorized. Please re-login.")
-            return
+async def main():
+    await client.connect()
+    if not await client.is_user_authorized():
+        logger.error("❌ Not authorized. Please re-login.")
+        return
 
-        logger.info("🤖 SmashBot is live and monitoring 'mainet_community' for raid buttons...")
-        await client.run_until_disconnected()
-
-    asyncio.run(main())
+    logger.info("🤖 SmashBot is live and monitoring 'testingbothu' for raid buttons...")
+    await client.run_until_disconnected()
 
 # ─────────────────────────────
-# ✅ Run Flask + Telegram Together
+# ✅ Run the Bot and Flask Together
 # ─────────────────────────────
-if __name__ == '__main__':
-    threading.Thread(target=start_telegram).start()
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+if __name__ == "__main__":
+    threading.Thread(target=run_flask).start()
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        logger.critical(f"🔥 Bot crashed: {e}")
