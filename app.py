@@ -4,7 +4,7 @@ import os
 import random
 import logging
 import threading
-from flask import Flask
+from flask import Flask, request
 from telethon.errors import SessionPasswordNeededError
 
 # ─────────────────────────────
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────
 API_ID = int(os.environ['API_ID'])
 API_HASH = os.environ['API_HASH']
-SESSION_NAME = "918220747701"
+SESSION_NAME = "918220747701"  # your .session filename without extension
 
 if f"{SESSION_NAME}.session" not in os.listdir():
     logger.error("❌ Session file not found. Please upload it.")
@@ -35,10 +35,15 @@ seen_links = set()
 # ─────────────────────────────
 app = Flask(__name__)
 
-@app.route("/ping", methods=["GET", "HEAD"])
+@app.route("/", methods=["GET", "HEAD"])
 def home():
-    logger.info("✅ UptimeRobot ping received.")
+    logger.info("✅ UptimeRobot ping received on /")
     return "SmashBot is alive!", 200
+
+@app.route("/<path:path>", methods=["GET", "HEAD"])
+def catch_all(path):
+    logger.info(f"⚠️ Ping received on unknown path: /{path}")
+    return "Alive (unknown path)", 200
 
 def run_flask():
     app.run(host="0.0.0.0", port=8080)
@@ -46,12 +51,12 @@ def run_flask():
 # ─────────────────────────────
 # ✅ Message Handler
 # ─────────────────────────────
-@client.on(events.NewMessage(chats='testingbothu'))  # change to your group/topic
+@client.on(events.NewMessage(chats='testingbothu'))  # change this to your group/topic
 async def handler(event):
     message = event.message
     text = message.message or ""
 
-    # Skip messages without buttons
+    # Try to get buttons
     try:
         buttons = await event.get_buttons()
         if not buttons:
@@ -60,7 +65,7 @@ async def handler(event):
         logger.warning(f"[x] Could not fetch buttons: {e}")
         return
 
-    # Extract tweet URL if available
+    # Extract tweet URL
     tweet_url = None
     if "https://" in text:
         start = text.find("https://")
@@ -74,15 +79,11 @@ async def handler(event):
         seen_links.add(tweet_url)
 
     await asyncio.sleep(random.randint(6, 12))
-
     try:
-        # Always try to click the last button in the last row
-        last_row = buttons[-1]
-        last_col = len(last_row) - 1
-        await message.click(len(buttons) - 1, last_col)
+        await message.click(len(buttons) - 1)
         logger.info(f"[✓] Clicked last button: {tweet_url or 'No link'}")
     except Exception as e:
-        logger.error(f"[x] Failed to click last button: {e}")
+        logger.error(f"[x] Failed to click button: {e}")
 
 # ─────────────────────────────
 # ✅ Main Entrypoint
@@ -97,7 +98,7 @@ async def main():
     await client.run_until_disconnected()
 
 # ─────────────────────────────
-# ✅ Run the Bot and Flask Together
+# ✅ Run Both Flask and Bot
 # ─────────────────────────────
 if __name__ == "__main__":
     threading.Thread(target=run_flask).start()
