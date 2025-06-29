@@ -50,7 +50,7 @@ def run_flask():
 # ─────────────────────────────
 # ✅ Message Handler
 # ─────────────────────────────
-@client.on(events.NewMessage(chats='testingbothu'))
+@client.on(events.NewMessage(chats='mainet_community'))
 async def handler(event):
     message = event.message
     text = message.message or ""
