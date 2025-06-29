@@ -61,6 +61,8 @@ async def handler(event):
         buttons = await event.get_buttons()
         if not buttons:
             return
+        # Flatten buttons list
+        flat_buttons = [btn for row in buttons for btn in row]
     except Exception as e:
         logger.warning(f"[x] Could not fetch buttons: {e}")
         return
@@ -79,8 +81,9 @@ async def handler(event):
         seen_links.add(tweet_url)
 
     await asyncio.sleep(random.randint(6, 12))
+
     try:
-        await message.click(len(buttons) - 1)
+        await message.click(button=flat_buttons[-1])
         logger.info(f"[✓] Clicked last button: {tweet_url or 'No link'}")
     except Exception as e:
         logger.error(f"[x] Failed to click button: {e}")
@@ -98,7 +101,7 @@ async def main():
     await client.run_until_disconnected()
 
 # ─────────────────────────────
-# ✅ Run Both Flask and Bot
+# ✅ Run Flask + Bot Together
 # ─────────────────────────────
 if __name__ == "__main__":
     threading.Thread(target=run_flask).start()
