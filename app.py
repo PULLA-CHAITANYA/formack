@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────
 API_ID = int(os.environ['API_ID'])
 API_HASH = os.environ['API_HASH']
-SESSION_NAME = "918220747701"  # .session filename without extension
+SESSION_NAME = "918220747701"  # your .session filename without extension
 
 if f"{SESSION_NAME}.session" not in os.listdir():
     logger.error("❌ Session file not found. Please upload it.")
@@ -51,7 +51,7 @@ def run_flask():
 # ─────────────────────────────
 # ✅ Message Handler
 # ─────────────────────────────
-@client.on(events.NewMessage(chats='testingbothu'))  # Replace with your group/topic
+@client.on(events.NewMessage(chats='testingbothu'))  # change this to your group/topic
 async def handler(event):
     message = event.message
     text = message.message or ""
@@ -62,7 +62,7 @@ async def handler(event):
         if not buttons:
             return
 
-        # Flatten buttons list (Telethon returns 2D button layout)
+        # Flatten the 2D buttons list into 1D
         flat_buttons = [btn for row in buttons for btn in row]
 
     except Exception as e:
@@ -85,8 +85,8 @@ async def handler(event):
     await asyncio.sleep(random.randint(6, 12))
 
     try:
-        # ✅ Click the last button from the flat list
-        await message.click(flat_buttons[-1])
+        # ✅ Click the last button using correct index
+        await message.click(button=len(flat_buttons) - 1)
         logger.info(f"[✓] Clicked last button: {tweet_url or 'No link'}")
     except Exception as e:
         logger.error(f"[x] Failed to click button: {e}")
@@ -104,7 +104,7 @@ async def main():
     await client.run_until_disconnected()
 
 # ─────────────────────────────
-# ✅ Run Flask and Bot
+# ✅ Run Both Flask and Bot
 # ─────────────────────────────
 if __name__ == "__main__":
     threading.Thread(target=run_flask).start()
