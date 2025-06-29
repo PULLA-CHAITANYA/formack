@@ -4,8 +4,7 @@ import os
 import random
 import logging
 import threading
-from flask import Flask, request
-from telethon.errors import SessionPasswordNeededError
+from flask import Flask
 
 # ─────────────────────────────
 # ✅ Logging Setup
@@ -21,7 +20,7 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────
 API_ID = int(os.environ['API_ID'])
 API_HASH = os.environ['API_HASH']
-SESSION_NAME = "918220747701"  # your .session filename without extension
+SESSION_NAME = "918220747701"
 
 if f"{SESSION_NAME}.session" not in os.listdir():
     logger.error("❌ Session file not found. Please upload it.")
@@ -51,25 +50,23 @@ def run_flask():
 # ─────────────────────────────
 # ✅ Message Handler
 # ─────────────────────────────
-@client.on(events.NewMessage(chats='testingbothu'))  # change this to your group/topic
+@client.on(events.NewMessage(chats='testingbothu'))
 async def handler(event):
     message = event.message
     text = message.message or ""
 
-    # Try to get buttons
     try:
         buttons = await event.get_buttons()
         if not buttons:
             return
 
-        # Flatten the 2D buttons list into 1D
+        # Flatten buttons from 2D list to 1D
         flat_buttons = [btn for row in buttons for btn in row]
 
     except Exception as e:
         logger.warning(f"[x] Could not fetch buttons: {e}")
         return
 
-    # Extract tweet URL
     tweet_url = None
     if "https://" in text:
         start = text.find("https://")
@@ -85,8 +82,8 @@ async def handler(event):
     await asyncio.sleep(random.randint(6, 12))
 
     try:
-        # ✅ Click the last button using correct index
-        await message.click(button=len(flat_buttons) - 1)
+        # ✅ Corrected positional argument (no keyword)
+        await message.click(len(flat_buttons) - 1)
         logger.info(f"[✓] Clicked last button: {tweet_url or 'No link'}")
     except Exception as e:
         logger.error(f"[x] Failed to click button: {e}")
